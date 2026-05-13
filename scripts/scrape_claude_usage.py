@@ -171,7 +171,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--token",
         default=os.environ.get("CLAUDEMETER_TOKEN"),
-        help="Ingest auth token matching the device's usage.ingest_token setting.",
+        help="Ingest auth token matching the device's usage.auth_tok setting.",
     )
     parser.add_argument(
         "--root",

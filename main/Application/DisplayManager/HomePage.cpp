@@ -127,9 +127,9 @@ void HomePage::Update()
 
     auto snap = claudeMeter.GetSnapshot();
 
-    int64_t inBudget   = settingsManager.getInt("usage.daily_in_budget",  1000000);
-    int64_t outBudget  = settingsManager.getInt("usage.daily_out_budget", 100000);
-    int64_t costBudget = settingsManager.getInt("usage.daily_cost_cents", 500);
+    int64_t inBudget   = settingsManager.getInt("usage.in_bud",   1000000);
+    int64_t outBudget  = settingsManager.getInt("usage.out_bud",  100000);
+    int64_t costBudget = settingsManager.getInt("usage.cost_bud", 500);
 
     if (!snap.valid)
     {

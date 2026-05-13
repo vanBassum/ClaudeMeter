@@ -58,12 +58,12 @@ int ClaudeMeterManager::Ingest(const char *body, size_t bodyLen,
                                const char *bearer,
                                char *outResp, size_t outRespCap)
 {
-    // Auth: if usage.ingest_token is set, the request must present the same
-    // token as a bearer. If the setting is empty, the endpoint is unauthed
-    // (LAN-only deployments).
+    // Auth: if usage.auth_tok is set, the request must present the same token
+    // as a bearer. If the setting is empty, the endpoint is unauthed (LAN-only
+    // deployments).
     auto &settings = serviceProvider_.getSettingsManager();
     char expectedToken[64] = {};
-    settings.getString("usage.ingest_token", expectedToken, sizeof(expectedToken));
+    settings.getString("usage.auth_tok", expectedToken, sizeof(expectedToken));
     if (expectedToken[0] != '\0')
     {
         if (!bearer || strncmp(bearer, "Bearer ", 7) != 0 ||

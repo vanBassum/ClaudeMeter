@@ -29,10 +29,11 @@ inline constexpr SettingDef SETTINGS_DEFS[] = {
 
     // Claude Code usage metering — populated by an external scraper that
     // reads ~/.claude/projects/**/*.jsonl and POSTs to /api/usage.
-    { "usage.daily_in_budget",     SettingType::Int,    "Daily Input Token Budget",     "1000000" },
-    { "usage.daily_out_budget",    SettingType::Int,    "Daily Output Token Budget",    "100000"  },
-    { "usage.daily_cost_cents",    SettingType::Int,    "Daily Cost Budget (cents)",    "500"     },
-    { "usage.ingest_token",        SettingType::String, "Ingest Auth Token (optional)", ""        },
+    // Keys are capped at 15 chars by NVS — see SettingKey in SettingsManager.h.
+    { "usage.in_bud",    SettingType::Int,    "Daily Input Token Budget",     "1000000" },
+    { "usage.out_bud",   SettingType::Int,    "Daily Output Token Budget",    "100000"  },
+    { "usage.cost_bud",  SettingType::Int,    "Daily Cost Budget (cents)",    "500"     },
+    { "usage.auth_tok",  SettingType::String, "Ingest Auth Token (optional)", ""        },
 };
 
 inline constexpr int SETTINGS_DEFS_COUNT = sizeof(SETTINGS_DEFS) / sizeof(SETTINGS_DEFS[0]);

@@ -2,9 +2,10 @@
 #include "SettingsManager/SettingsManager.h"
 #include "ContextLock.h"
 #include "esp_log.h"
-#include "cJSON.h"
 #include <cstring>
 #include <cstdio>
+#include <cstdlib>
+#include <cctype>
 
 ClaudeMeterManager::ClaudeMeterManager(ServiceProvider &sp)
     : serviceProvider_(sp)
@@ -25,12 +26,32 @@ ClaudeMeterManager::Snapshot ClaudeMeterManager::GetSnapshot()
     return snapshot_;
 }
 
-static int64_t json_int(const cJSON *parent, const char *key)
+// Minimal JSON int extractor. Finds `"key" : <number>` anywhere in `json` and
+// returns the parsed integer; returns 0 if the key isn't present.
+//
+// Good enough because: (a) we control the producer (scrape_claude_usage.py),
+// (b) the schema is flat with no naming collisions, (c) all values we care
+// about are integers, and (d) ESP-IDF v6 removed the bundled `json` component.
+static int64_t json_int(const char *json, const char *key)
 {
-    if (!parent) return 0;
-    const cJSON *node = cJSON_GetObjectItemCaseSensitive(parent, key);
-    if (cJSON_IsNumber(node)) return (int64_t)node->valuedouble;
-    return 0;
+    char needle[48];
+    int n = snprintf(needle, sizeof(needle), "\"%s\"", key);
+    if (n < 0 || n >= (int)sizeof(needle)) return 0;
+
+    const char *p = strstr(json, needle);
+    if (!p) return 0;
+    p += n;
+
+    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
+    if (*p != ':') return 0;
+    p++;
+    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
+
+    // strtoll handles optional leading '-' and stops at non-digit.
+    char *end = nullptr;
+    long long v = strtoll(p, &end, 10);
+    if (end == p) return 0;
+    return (int64_t)v;
 }
 
 int ClaudeMeterManager::Ingest(const char *body, size_t bodyLen,
@@ -53,7 +74,6 @@ int ClaudeMeterManager::Ingest(const char *body, size_t bodyLen,
         }
     }
 
-    // We need a null-terminated string for cJSON.
     if (bodyLen >= 4096)
     {
         snprintf(outResp, outRespCap, "{\"ok\":false,\"err\":\"body_too_large\"}");
@@ -63,21 +83,22 @@ int ClaudeMeterManager::Ingest(const char *body, size_t bodyLen,
     memcpy(buf, body, bodyLen);
     buf[bodyLen] = '\0';
 
-    cJSON *root = cJSON_Parse(buf);
-    if (!root)
+    // Sanity check: looks like a JSON object.
+    const char *firstNonWs = buf;
+    while (*firstNonWs && isspace((unsigned char)*firstNonWs)) firstNonWs++;
+    if (*firstNonWs != '{')
     {
         snprintf(outResp, outRespCap, "{\"ok\":false,\"err\":\"bad_json\"}");
         return 400;
     }
 
     Snapshot s;
-    const cJSON *today = cJSON_GetObjectItemCaseSensitive(root, "today");
-    s.inputTokensToday   = json_int(today, "input_tokens");
-    s.outputTokensToday  = json_int(today, "output_tokens");
-    s.cacheCreationToday = json_int(today, "cache_creation_tokens");
-    s.cacheReadToday     = json_int(today, "cache_read_tokens");
-    s.costCentsToday     = json_int(today, "cost_cents");
-    s.lastActivityUnix   = json_int(root,  "last_activity_unix");
+    s.inputTokensToday   = json_int(buf, "input_tokens");
+    s.outputTokensToday  = json_int(buf, "output_tokens");
+    s.cacheCreationToday = json_int(buf, "cache_creation_tokens");
+    s.cacheReadToday     = json_int(buf, "cache_read_tokens");
+    s.costCentsToday     = json_int(buf, "cost_cents");
+    s.lastActivityUnix   = json_int(buf, "last_activity_unix");
     s.valid              = true;
     s.updatedAt          = DateTime::Now();
 
@@ -86,7 +107,6 @@ int ClaudeMeterManager::Ingest(const char *body, size_t bodyLen,
         snapshot_ = s;
     }
 
-    cJSON_Delete(root);
     snprintf(outResp, outRespCap, "{\"ok\":true}");
     return 200;
 }

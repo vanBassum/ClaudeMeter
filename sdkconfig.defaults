@@ -35,6 +35,15 @@ CONFIG_LV_FONT_MONTSERRAT_28=y
 
 # mbedTLS — embed the Mozilla root CA bundle so HTTPS to api.anthropic.com
 # and platform.claude.com works without per-host certificate pinning.
+#
+# CROSS_SIGNED_VERIFY=y is required: api.anthropic.com's chain ends at
+# GlobalSign Root CA (R1), which is NOT in the FULL Mozilla bundle, but
+# the chain's intermediate GTS Root R4 IS. Without this option mbedtls
+# follows the literal chain to the missing GlobalSign root and fails with
+# "No matching trusted root certificate found". With it, mbedtls also
+# checks whether any cert in the presented chain matches the trust store
+# directly, which is the standard TLS path-building behaviour.
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_CROSS_SIGNED_VERIFY=y
 

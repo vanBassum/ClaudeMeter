@@ -27,11 +27,15 @@ inline constexpr SettingDef SETTINGS_DEFS[] = {
     { "ntp.server",     SettingType::String, "NTP Server",     "pool.ntp.org" },
     { "ntp.timezone",   SettingType::String, "NTP Timezone",   "UTC0" },
 
-    // Claude Code usage metering — populated by a host-side script that
-    // probes Anthropic with the local OAuth token and POSTs the parsed
-    // rate-limit headers (utilization % + reset times) to /api/usage.
+    // Claude Code usage metering — the device probes Anthropic itself using
+    // a long-lived OAuth refresh token (copied from ~/.claude/.credentials.json
+    // on a machine that has logged in to Claude Code). The access token is
+    // refreshed automatically; only `claude.rt` survives across refreshes.
     // Keys are capped at 15 chars by NVS — see SettingKey in SettingsManager.h.
-    { "usage.auth_tok",  SettingType::String, "Ingest Auth Token (optional)", "" },
+    { "claude.at",    SettingType::String, "Claude Access Token",   "" },
+    { "claude.rt",    SettingType::String, "Claude Refresh Token",  "" },
+    { "claude.exp",   SettingType::Int,    "Token Expires (unix)",  "0" },
+    { "claude.poll",  SettingType::Int,    "Poll Interval (s)",     "60" },
 };
 
 inline constexpr int SETTINGS_DEFS_COUNT = sizeof(SETTINGS_DEFS) / sizeof(SETTINGS_DEFS[0]);

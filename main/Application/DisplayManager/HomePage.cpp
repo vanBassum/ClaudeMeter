@@ -147,31 +147,44 @@ void HomePage::Update()
 
     auto snap = claudeMeter.GetSnapshot();
 
-    if (!snap.valid)
-    {
-        lv_label_set_text(labelStatus, "Waiting for /api/usage");
-        lv_obj_set_style_text_color(labelStatus, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
-        UpdateRow(rowFiveHour, -1, 0, now);
-        UpdateRow(rowSevenDay, -1, 0, now);
-        return;
-    }
-
-    TimeSpan age = now - snap.updatedAt;
-    int ageSecs = (int)age.TotalSeconds();
-    if (ageSecs < 0) ageSecs = 0;
+    using S = ClaudeMeterManager::Status;
+    lv_color_t statusColor = lv_palette_main(LV_PALETTE_GREY);
     char statusBuf[48];
-    if (ageSecs < 60)
-        snprintf(statusBuf, sizeof(statusBuf), "Updated %ds ago", ageSecs);
-    else if (ageSecs < 3600)
-        snprintf(statusBuf, sizeof(statusBuf), "Updated %dm ago", ageSecs / 60);
-    else
-        snprintf(statusBuf, sizeof(statusBuf), "Updated %dh ago", ageSecs / 3600);
-    lv_label_set_text(labelStatus, statusBuf);
-    lv_obj_set_style_text_color(labelStatus,
-        ageSecs < 300 ? lv_palette_main(LV_PALETTE_GREEN)
-                      : lv_palette_main(LV_PALETTE_GREY),
-        LV_PART_MAIN);
 
+    if (snap.status == S::Ok)
+    {
+        TimeSpan age = now - snap.updatedAt;
+        int ageSecs = (int)age.TotalSeconds();
+        if (ageSecs < 0) ageSecs = 0;
+        if (ageSecs < 60)
+            snprintf(statusBuf, sizeof(statusBuf), "Updated %ds ago", ageSecs);
+        else if (ageSecs < 3600)
+            snprintf(statusBuf, sizeof(statusBuf), "Updated %dm ago", ageSecs / 60);
+        else
+            snprintf(statusBuf, sizeof(statusBuf), "Updated %dh ago", ageSecs / 3600);
+        statusColor = (ageSecs < (int)(2 * 60))
+                          ? lv_palette_main(LV_PALETTE_GREEN)
+                          : lv_palette_main(LV_PALETTE_GREY);
+    }
+    else
+    {
+        snprintf(statusBuf, sizeof(statusBuf), "%s", ClaudeMeterManager::StatusStr(snap.status));
+        switch (snap.status)
+        {
+            case S::Refreshing:
+            case S::Probing:       statusColor = lv_palette_main(LV_PALETTE_BLUE);   break;
+            case S::RateLimited:   statusColor = lv_palette_main(LV_PALETTE_ORANGE); break;
+            case S::AuthError:
+            case S::NetworkError:
+            case S::OtherError:    statusColor = lv_palette_main(LV_PALETTE_RED);    break;
+            default:               statusColor = lv_palette_main(LV_PALETTE_GREY);   break;
+        }
+    }
+    lv_label_set_text(labelStatus, statusBuf);
+    lv_obj_set_style_text_color(labelStatus, statusColor, LV_PART_MAIN);
+
+    // Render whatever utilisation we last captured (the manager preserves the
+    // previous values across non-OK polls so the bars don't flicker).
     UpdateRow(rowFiveHour, snap.fiveHourUtilPct, snap.fiveHourResetUnix, now);
     UpdateRow(rowSevenDay, snap.sevenDayUtilPct, snap.sevenDayResetUnix, now);
 }

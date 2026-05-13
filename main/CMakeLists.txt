@@ -15,6 +15,13 @@ set(SOURCE_FILES_LIST
     "Application/MqttManager/MqttManager.cpp"
     "Application/DeviceManager/DeviceManager.cpp"
     "Application/HomeAssistantManager/HomeAssistantManager.cpp"
+    "Application/DisplayManager/DisplayManager.cpp"
+    "Application/DisplayManager/DisplayPage.cpp"
+    "Application/DisplayManager/HomePage.cpp"
+    "Application/DisplayManager/SettingsMenuPage.cpp"
+    "Application/DisplayManager/WifiPage.cpp"
+    "Application/DisplayManager/SystemPage.cpp"
+    "hardware/display/Display_WT32SC01.cpp"
     "lib/system/DateTime.cpp"
     "lib/system/TimeSpan.cpp"
 )
@@ -32,7 +39,9 @@ set(INCLUDE_DIRS_LIST
     "Application/MqttManager"
     "Application/DeviceManager"
     "Application/HomeAssistantManager"
+    "Application/DisplayManager"
     "hardware"
+    "hardware/display"
     "lib"
     "lib/common"
     "lib/rtos"
@@ -53,8 +62,14 @@ set(COMPONENT_REQUIRES
     fatfs
     wear_levelling
     esp_driver_gpio
+    esp_driver_spi
+    esp_driver_ledc
+    esp_driver_i2c
+    esp_lcd
     mdns
     espressif__mqtt
+    lvgl
+    esp_lcd_touch
 )
 
 # Register component with ESP-IDF

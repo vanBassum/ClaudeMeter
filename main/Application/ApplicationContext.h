@@ -3,6 +3,7 @@
 #include "CommandManager/CommandManager.h"
 #include "ConsoleManager/ConsoleManager.h"
 #include "DeviceManager/DeviceManager.h"
+#include "DisplayManager/DisplayManager.h"
 #include "HomeAssistantManager/HomeAssistantManager.h"
 #include "MqttManager/MqttManager.h"
 #include "NetworkManager/NetworkManager.h"
@@ -22,6 +23,7 @@ public:
     CommandManager& getCommandManager() override { return m_commandManager; }
     ConsoleManager& getConsoleManager() override { return m_consoleManager; }
     DeviceManager& getDeviceManager() override { return m_deviceManager; }
+    DisplayManager& getDisplayManager() override { return m_displayManager; }
     HomeAssistantManager& getHomeAssistantManager() override { return m_homeAssistantManager; }
     MqttManager& getMqttManager() override { return m_mqttManager; }
     NetworkManager& getNetworkManager() override { return m_networkManager; }
@@ -35,6 +37,7 @@ private:
     SettingsManager m_settingsManager{*this};
     NetworkManager m_networkManager{*this};
     TimeManager m_timeManager{*this};
+    DisplayManager m_displayManager{*this};
     CommandManager m_commandManager{*this};
     MqttManager m_mqttManager{*this};
     DeviceManager m_deviceManager{*this};

@@ -70,9 +70,7 @@ set(COMPONENT_REQUIRES
     esp_lcd
     mdns
     espressif__mqtt
-    esp_http_client
-    esp-tls
-    mbedtls
+    json
     lvgl
     esp_lcd_touch
 )

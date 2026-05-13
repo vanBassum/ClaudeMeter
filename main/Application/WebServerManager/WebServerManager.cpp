@@ -2,6 +2,7 @@
 #include "CommandManager.h"
 #include "ConsoleManager.h"
 #include "UpdateManager.h"
+#include "ClaudeMeterManager/ClaudeMeterManager.h"
 
 #include <unistd.h>
 #include <esp_log.h>
@@ -151,6 +152,28 @@ void WebServerManager::RegisterRoutes()
     };
     httpd_register_uri_handler(server_, &download);
 
+    const httpd_uri_t usage_ingest = {
+        .uri = "/api/usage",
+        .method = HTTP_POST,
+        .handler = HandleClaudeUsage,
+        .user_ctx = this,
+        .is_websocket = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
+    };
+    httpd_register_uri_handler(server_, &usage_ingest);
+
+    const httpd_uri_t usage_opts = {
+        .uri = "/api/usage",
+        .method = HTTP_OPTIONS,
+        .handler = HandleCorsPreflight,
+        .user_ctx = this,
+        .is_websocket = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
+    };
+    httpd_register_uri_handler(server_, &usage_opts);
+
     wsHandler_.RegisterRoute(server_);
     staticFileHandler_.RegisterRoute(server_, BASE_PATH);
 }
@@ -293,6 +316,49 @@ esp_err_t WebServerManager::HandleCorsPreflight(httpd_req_t* req)
     SetCorsHeaders(req);
     httpd_resp_set_status(req, "204 No Content");
     httpd_resp_send(req, nullptr, 0);
+    return ESP_OK;
+}
+
+esp_err_t WebServerManager::HandleClaudeUsage(httpd_req_t* req)
+{
+    auto* self = static_cast<WebServerManager*>(req->user_ctx);
+    auto& meter = self->serviceProvider_.getClaudeMeterManager();
+
+    if (req->content_len <= 0 || req->content_len > 3072)
+    {
+        SetCorsHeaders(req);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad payload size");
+        return ESP_FAIL;
+    }
+
+    char body[3072];
+    int total = 0;
+    while (total < req->content_len)
+    {
+        int n = httpd_req_recv(req, body + total, req->content_len - total);
+        if (n <= 0)
+        {
+            SetCorsHeaders(req);
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Receive failed");
+            return ESP_FAIL;
+        }
+        total += n;
+    }
+
+    char authHdr[96] = {};
+    httpd_req_get_hdr_value_str(req, "Authorization", authHdr, sizeof(authHdr));
+
+    char resp[96];
+    int status = meter.Ingest(body, total, authHdr[0] ? authHdr : nullptr,
+                              resp, sizeof(resp));
+
+    SetCorsHeaders(req);
+    httpd_resp_set_type(req, "application/json");
+    if (status == 401)
+        httpd_resp_set_status(req, "401 Unauthorized");
+    else if (status == 400)
+        httpd_resp_set_status(req, "400 Bad Request");
+    httpd_resp_send(req, resp, strlen(resp));
     return ESP_OK;
 }
 

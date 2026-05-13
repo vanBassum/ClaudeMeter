@@ -2,47 +2,34 @@
 
 #include "ServiceProvider.h"
 #include "InitState.h"
-#include "Task.h"
 #include "Mutex.h"
 #include "DateTime.h"
-#include "esp_http_client.h"
+#include <cstdint>
 
+// Receives usage aggregates pushed from a companion script on the developer's
+// machine that scrapes ~/.claude/projects/**/*.jsonl. ClaudeMeterManager does
+// not initiate any outbound traffic — it only caches the latest snapshot for
+// the display.
 class ClaudeMeterManager
 {
     static constexpr const char *TAG = "ClaudeMeterManager";
 
 public:
-    enum class Status
-    {
-        Unconfigured,       // no api_key set or poll_s == 0
-        WaitingForNetwork,  // wifi has no IP yet
-        Polling,            // request in flight
-        Ok,                 // last poll succeeded, rate-limit headers captured
-        AuthError,          // 401/403
-        RateLimited,        // 429
-        NetworkError,       // tls/dns/connect failed
-        OtherError          // 4xx/5xx
-    };
-
     struct Snapshot
     {
-        Status status = Status::Unconfigured;
-        bool everSucceeded = false;
-        DateTime fetchedAt{};
-        int httpStatus = 0;
+        bool       valid               = false;
+        DateTime   updatedAt{};
 
-        // -1 means "unknown / header not seen"
-        int     reqLimit          = -1;
-        int     reqRemaining      = -1;
-        int     reqResetInSecs    = -1;
+        // Totals attributed to "today" by the scraper.
+        int64_t    inputTokensToday    = 0;
+        int64_t    outputTokensToday   = 0;
+        int64_t    cacheCreationToday  = 0;
+        int64_t    cacheReadToday      = 0;
+        int64_t    costCentsToday      = 0;
 
-        int64_t inTokLimit        = -1;
-        int64_t inTokRemaining    = -1;
-        int     inTokResetInSecs  = -1;
-
-        int64_t outTokLimit       = -1;
-        int64_t outTokRemaining   = -1;
-        int     outTokResetInSecs = -1;
+        // When the most recent Claude Code turn happened (seconds since epoch,
+        // 0 if unknown).
+        int64_t    lastActivityUnix    = 0;
     };
 
     explicit ClaudeMeterManager(ServiceProvider &sp);
@@ -52,27 +39,18 @@ public:
     void Init();
 
     Snapshot GetSnapshot();
-    static const char *StatusStr(Status s);
+
+    // Returns an HTTP status code (200, 400, 401) and writes a short response
+    // string to outResp/outRespCap suitable for httpd_resp_send. Body is the
+    // raw POST body; bearer is the value of the Authorization header (or
+    // nullptr if not provided).
+    int Ingest(const char *body, size_t bodyLen,
+               const char *bearer,
+               char *outResp, size_t outRespCap);
 
 private:
     ServiceProvider &serviceProvider_;
-    InitState initState_;
-    Task task_;
-    Mutex mutex_;
-
-    Snapshot snapshot_;
-    Snapshot inFlight_;
-
-    int  pollSec_ = 60;
-    bool enabled_ = false;
-    char apiKey_[80] = {};
-    char model_[48] = {};
-
-    void Work();
-    void LoadConfig();
-    void PollOnce();
-    void HandleHeader(const char *key, const char *value);
-
-    static esp_err_t HttpEventHandler(esp_http_client_event_t *evt);
-    static int ParseIsoToSecsFromNow(const char *iso);
+    InitState        initState_;
+    Mutex            mutex_;
+    Snapshot         snapshot_;
 };

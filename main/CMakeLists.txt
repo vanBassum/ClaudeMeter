@@ -15,6 +15,7 @@ set(SOURCE_FILES_LIST
     "Application/MqttManager/MqttManager.cpp"
     "Application/DeviceManager/DeviceManager.cpp"
     "Application/HomeAssistantManager/HomeAssistantManager.cpp"
+    "Application/ClaudeMeterManager/ClaudeMeterManager.cpp"
     "Application/DisplayManager/DisplayManager.cpp"
     "Application/DisplayManager/DisplayPage.cpp"
     "Application/DisplayManager/HomePage.cpp"
@@ -39,6 +40,7 @@ set(INCLUDE_DIRS_LIST
     "Application/MqttManager"
     "Application/DeviceManager"
     "Application/HomeAssistantManager"
+    "Application/ClaudeMeterManager"
     "Application/DisplayManager"
     "hardware"
     "hardware/display"
@@ -68,6 +70,9 @@ set(COMPONENT_REQUIRES
     esp_lcd
     mdns
     espressif__mqtt
+    esp_http_client
+    esp-tls
+    mbedtls
     lvgl
     esp_lcd_touch
 )

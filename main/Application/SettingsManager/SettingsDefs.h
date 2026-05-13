@@ -26,6 +26,11 @@ inline constexpr SettingDef SETTINGS_DEFS[] = {
     // NTP
     { "ntp.server",     SettingType::String, "NTP Server",     "pool.ntp.org" },
     { "ntp.timezone",   SettingType::String, "NTP Timezone",   "UTC0" },
+
+    // Claude API (rate-limit metering)
+    { "claude.api_key",   SettingType::String, "Claude API Key",         "" },
+    { "claude.model",     SettingType::String, "Claude Model",           "claude-haiku-4-5" },
+    { "claude.poll_s",    SettingType::Int,    "Poll Interval (s, 0=off)", "60" },
 };
 
 inline constexpr int SETTINGS_DEFS_COUNT = sizeof(SETTINGS_DEFS) / sizeof(SETTINGS_DEFS[0]);

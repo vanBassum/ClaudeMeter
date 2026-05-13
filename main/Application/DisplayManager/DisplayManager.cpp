@@ -3,7 +3,7 @@
 #include <cstring>
 
 DisplayManager::DisplayManager(ServiceProvider &ctx)
-    : homePage(ctx.getNetworkManager(), ctx.getSettingsManager())
+    : homePage(ctx.getNetworkManager(), ctx.getSettingsManager(), ctx.getClaudeMeterManager())
     , wifiPage(ctx.getSettingsManager(), ctx.getNetworkManager())
     , systemPage(ctx.getSettingsManager())
 {

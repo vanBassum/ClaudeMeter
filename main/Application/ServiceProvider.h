@@ -1,5 +1,6 @@
 #pragma once
 
+class ClaudeMeterManager;
 class CommandManager;
 class ConsoleManager;
 class DeviceManager;
@@ -15,6 +16,7 @@ class WebServerManager;
 class ServiceProvider
 {
 public:
+    virtual ClaudeMeterManager& getClaudeMeterManager() = 0;
     virtual CommandManager& getCommandManager() = 0;
     virtual ConsoleManager& getConsoleManager() = 0;
     virtual DeviceManager& getDeviceManager() = 0;

@@ -1,5 +1,6 @@
 #pragma once
 #include "ServiceProvider.h"
+#include "ClaudeMeterManager/ClaudeMeterManager.h"
 #include "CommandManager/CommandManager.h"
 #include "ConsoleManager/ConsoleManager.h"
 #include "DeviceManager/DeviceManager.h"
@@ -20,6 +21,7 @@ public:
     ApplicationContext(const ApplicationContext&) = delete;
     ApplicationContext& operator=(const ApplicationContext&) = delete;
 
+    ClaudeMeterManager& getClaudeMeterManager() override { return m_claudeMeterManager; }
     CommandManager& getCommandManager() override { return m_commandManager; }
     ConsoleManager& getConsoleManager() override { return m_consoleManager; }
     DeviceManager& getDeviceManager() override { return m_deviceManager; }
@@ -37,6 +39,7 @@ private:
     SettingsManager m_settingsManager{*this};
     NetworkManager m_networkManager{*this};
     TimeManager m_timeManager{*this};
+    ClaudeMeterManager m_claudeMeterManager{*this};
     DisplayManager m_displayManager{*this};
     CommandManager m_commandManager{*this};
     MqttManager m_mqttManager{*this};

@@ -22,15 +22,15 @@ private:
     lv_obj_t *labelStatus  = nullptr;
 
     struct Row {
-        lv_obj_t *title  = nullptr;
-        lv_obj_t *bar    = nullptr;
-        lv_obj_t *amount = nullptr;
-        lv_obj_t *detail = nullptr;
+        lv_obj_t *title   = nullptr;
+        lv_obj_t *bar     = nullptr;
+        lv_obj_t *percent = nullptr;
+        lv_obj_t *reset   = nullptr;
     };
-    Row rowIn;
-    Row rowOut;
-    Row rowCost;
+    Row rowFiveHour;
+    Row rowSevenDay;
 
     void OnCreate() override;
-    void BuildRow(Row &row, const char *title, lv_color_t color, lv_coord_t y);
+    void BuildRow(Row &row, const char *title, lv_coord_t y);
+    static void UpdateRow(Row &row, int utilPct, int64_t resetUnix, DateTime now);
 };

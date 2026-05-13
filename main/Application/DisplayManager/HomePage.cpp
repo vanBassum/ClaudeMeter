@@ -6,7 +6,7 @@ void HomePage::OnCreate()
 {
     lv_obj_set_style_bg_color(panel, lv_color_black(), LV_PART_MAIN);
 
-    // Top bar: time, status, IP
+    // Top bar
     labelTime = lv_label_create(panel);
     lv_obj_set_pos(labelTime, 10, 6);
     lv_label_set_text(labelTime, "00:00:00");
@@ -46,68 +46,88 @@ void HomePage::OnCreate()
             page->navigate("settings");
     }, LV_EVENT_CLICKED, this);
 
-    BuildRow(rowIn,   "Input",  lv_palette_main(LV_PALETTE_GREEN),  50);
-    BuildRow(rowOut,  "Output", lv_palette_main(LV_PALETTE_ORANGE),140);
-    BuildRow(rowCost, "Cost",   lv_palette_main(LV_PALETTE_RED),   230);
+    BuildRow(rowFiveHour, "Session (5hr)", 80);
+    BuildRow(rowSevenDay, "Weekly (7 day)", 195);
 }
 
-void HomePage::BuildRow(Row &row, const char *title, lv_color_t color, lv_coord_t y)
+void HomePage::BuildRow(Row &row, const char *title, lv_coord_t y)
 {
     row.title = lv_label_create(panel);
     lv_label_set_text(row.title, title);
-    lv_obj_set_pos(row.title, 14, y);
+    lv_obj_set_pos(row.title, 18, y);
     lv_obj_set_style_text_color(row.title, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(row.title, &lv_font_montserrat_20, LV_PART_MAIN);
 
-    row.detail = lv_label_create(panel);
-    lv_label_set_text(row.detail, "");
-    lv_obj_set_style_text_color(row.detail, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
-    lv_obj_set_style_text_font(row.detail, &lv_font_montserrat_14, LV_PART_MAIN);
-    lv_obj_set_pos(row.detail, LCD_HRES - 180, y + 4);
+    row.percent = lv_label_create(panel);
+    lv_label_set_text(row.percent, "--%");
+    lv_obj_set_style_text_color(row.percent, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_font(row.percent, &lv_font_montserrat_20, LV_PART_MAIN);
+    lv_obj_align(row.percent, LV_ALIGN_TOP_LEFT, LCD_HRES - 80, y);
 
     row.bar = lv_bar_create(panel);
-    lv_obj_set_size(row.bar, LCD_HRES - 28, 18);
-    lv_obj_set_pos(row.bar, 14, y + 32);
-    lv_bar_set_range(row.bar, 0, 1000);
+    lv_obj_set_size(row.bar, LCD_HRES - 36, 14);
+    lv_obj_set_pos(row.bar, 18, y + 34);
+    lv_bar_set_range(row.bar, 0, 100);
     lv_bar_set_value(row.bar, 0, LV_ANIM_OFF);
     lv_obj_set_style_bg_color(row.bar, lv_color_hex(0x1a1a1a), LV_PART_MAIN);
-    lv_obj_set_style_bg_color(row.bar, color, LV_PART_INDICATOR);
-    lv_obj_set_style_border_width(row.bar, 1, LV_PART_MAIN);
-    lv_obj_set_style_border_color(row.bar, lv_color_hex(0x333333), LV_PART_MAIN);
-    lv_obj_set_style_radius(row.bar, 3, LV_PART_MAIN);
-    lv_obj_set_style_radius(row.bar, 3, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(row.bar, lv_palette_main(LV_PALETTE_BLUE), LV_PART_INDICATOR);
+    lv_obj_set_style_border_width(row.bar, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(row.bar, 2, LV_PART_MAIN);
+    lv_obj_set_style_radius(row.bar, 2, LV_PART_INDICATOR);
 
-    row.amount = lv_label_create(panel);
-    lv_label_set_text(row.amount, "—");
-    lv_obj_set_style_text_color(row.amount, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
-    lv_obj_set_style_text_font(row.amount, &lv_font_montserrat_14, LV_PART_MAIN);
-    lv_obj_set_pos(row.amount, 14, y + 54);
+    row.reset = lv_label_create(panel);
+    lv_label_set_text(row.reset, "");
+    lv_obj_set_style_text_color(row.reset, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
+    lv_obj_set_style_text_font(row.reset, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_pos(row.reset, 18, y + 56);
 }
 
-static void FormatTokens(char *buf, size_t n, int64_t v)
+static void FormatResetIn(char *buf, size_t n, int64_t secsUntilReset)
 {
-    if (v < 0)             snprintf(buf, n, "?");
-    else if (v < 1000)     snprintf(buf, n, "%lld",   (long long)v);
-    else if (v < 1000000)  snprintf(buf, n, "%.1fk",  v / 1000.0);
-    else                   snprintf(buf, n, "%.2fM",  v / 1000000.0);
-}
-
-static void FormatCost(char *buf, size_t n, int64_t cents)
-{
-    if (cents < 0) { snprintf(buf, n, "?"); return; }
-    snprintf(buf, n, "$%lld.%02lld", (long long)(cents / 100), (long long)(cents % 100));
-}
-
-static void SetBarPct(lv_obj_t *bar, int64_t used, int64_t budget)
-{
-    int32_t pct = 0;
-    if (budget > 0 && used >= 0)
-    {
-        pct = (int32_t)((used * 1000) / budget);
-        if (pct < 0)    pct = 0;
-        if (pct > 1000) pct = 1000;
+    if (secsUntilReset <= 0) {
+        snprintf(buf, n, "Resets now");
+        return;
     }
-    lv_bar_set_value(bar, pct, LV_ANIM_OFF);
+    if (secsUntilReset < 3600)
+        snprintf(buf, n, "Resets in %dm", (int)(secsUntilReset / 60));
+    else if (secsUntilReset < 86400)
+        snprintf(buf, n, "Resets in %dh", (int)(secsUntilReset / 3600));
+    else
+        snprintf(buf, n, "Resets in %dd", (int)(secsUntilReset / 86400));
+}
+
+void HomePage::UpdateRow(Row &row, int utilPct, int64_t resetUnix, DateTime now)
+{
+    if (utilPct < 0)
+    {
+        lv_label_set_text(row.percent, "--%");
+        lv_label_set_text(row.reset,   "");
+        lv_bar_set_value(row.bar, 0, LV_ANIM_OFF);
+        return;
+    }
+
+    char buf[24];
+    snprintf(buf, sizeof(buf), "%d%%", utilPct);
+    lv_label_set_text(row.percent, buf);
+    lv_bar_set_value(row.bar, utilPct > 100 ? 100 : utilPct, LV_ANIM_OFF);
+
+    // Colour the bar by severity, matching the screenshot's blue-then-orange-then-red feel
+    lv_color_t color;
+    if (utilPct >= 90)      color = lv_palette_main(LV_PALETTE_RED);
+    else if (utilPct >= 75) color = lv_palette_main(LV_PALETTE_ORANGE);
+    else                    color = lv_palette_main(LV_PALETTE_BLUE);
+    lv_obj_set_style_bg_color(row.bar, color, LV_PART_INDICATOR);
+
+    if (resetUnix > 0)
+    {
+        int64_t secsLeft = resetUnix - (int64_t)now.UtcSeconds();
+        FormatResetIn(buf, sizeof(buf), secsLeft);
+        lv_label_set_text(row.reset, buf);
+    }
+    else
+    {
+        lv_label_set_text(row.reset, "");
+    }
 }
 
 void HomePage::Update()
@@ -127,27 +147,15 @@ void HomePage::Update()
 
     auto snap = claudeMeter.GetSnapshot();
 
-    int64_t inBudget   = settingsManager.getInt("usage.in_bud",   1000000);
-    int64_t outBudget  = settingsManager.getInt("usage.out_bud",  100000);
-    int64_t costBudget = settingsManager.getInt("usage.cost_bud", 500);
-
     if (!snap.valid)
     {
         lv_label_set_text(labelStatus, "Waiting for /api/usage");
         lv_obj_set_style_text_color(labelStatus, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
-        lv_bar_set_value(rowIn.bar,   0, LV_ANIM_OFF);
-        lv_bar_set_value(rowOut.bar,  0, LV_ANIM_OFF);
-        lv_bar_set_value(rowCost.bar, 0, LV_ANIM_OFF);
-        lv_label_set_text(rowIn.amount,   "—");
-        lv_label_set_text(rowOut.amount,  "—");
-        lv_label_set_text(rowCost.amount, "—");
-        lv_label_set_text(rowIn.detail,   "");
-        lv_label_set_text(rowOut.detail,  "");
-        lv_label_set_text(rowCost.detail, "");
+        UpdateRow(rowFiveHour, -1, 0, now);
+        UpdateRow(rowSevenDay, -1, 0, now);
         return;
     }
 
-    // Status: how stale is the data
     TimeSpan age = now - snap.updatedAt;
     int ageSecs = (int)age.TotalSeconds();
     if (ageSecs < 0) ageSecs = 0;
@@ -164,47 +172,6 @@ void HomePage::Update()
                       : lv_palette_main(LV_PALETTE_GREY),
         LV_PART_MAIN);
 
-    // Input row: total input today (cache_read shown as secondary)
-    {
-        char usedStr[24], budgetStr[24], cacheStr[24];
-        FormatTokens(usedStr,   sizeof(usedStr),   snap.inputTokensToday);
-        FormatTokens(budgetStr, sizeof(budgetStr), inBudget);
-        FormatTokens(cacheStr,  sizeof(cacheStr),  snap.cacheReadToday);
-
-        char line[64];
-        snprintf(line, sizeof(line), "%s / %s", usedStr, budgetStr);
-        lv_label_set_text(rowIn.amount, line);
-        snprintf(line, sizeof(line), "+%s cache", cacheStr);
-        lv_label_set_text(rowIn.detail, line);
-
-        SetBarPct(rowIn.bar, snap.inputTokensToday, inBudget);
-    }
-
-    // Output row
-    {
-        char usedStr[24], budgetStr[24];
-        FormatTokens(usedStr,   sizeof(usedStr),   snap.outputTokensToday);
-        FormatTokens(budgetStr, sizeof(budgetStr), outBudget);
-
-        char line[64];
-        snprintf(line, sizeof(line), "%s / %s", usedStr, budgetStr);
-        lv_label_set_text(rowOut.amount, line);
-        lv_label_set_text(rowOut.detail, "");
-
-        SetBarPct(rowOut.bar, snap.outputTokensToday, outBudget);
-    }
-
-    // Cost row
-    {
-        char usedStr[24], budgetStr[24];
-        FormatCost(usedStr,   sizeof(usedStr),   snap.costCentsToday);
-        FormatCost(budgetStr, sizeof(budgetStr), costBudget);
-
-        char line[64];
-        snprintf(line, sizeof(line), "%s / %s", usedStr, budgetStr);
-        lv_label_set_text(rowCost.amount, line);
-        lv_label_set_text(rowCost.detail, "");
-
-        SetBarPct(rowCost.bar, snap.costCentsToday, costBudget);
-    }
+    UpdateRow(rowFiveHour, snap.fiveHourUtilPct, snap.fiveHourResetUnix, now);
+    UpdateRow(rowSevenDay, snap.sevenDayUtilPct, snap.sevenDayResetUnix, now);
 }

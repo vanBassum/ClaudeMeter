@@ -27,30 +27,28 @@ ClaudeMeterManager::Snapshot ClaudeMeterManager::GetSnapshot()
 }
 
 // Minimal JSON int extractor. Finds `"key" : <number>` anywhere in `json` and
-// returns the parsed integer; returns 0 if the key isn't present.
+// returns the parsed integer; returns `missing` if the key isn't present.
 //
-// Good enough because: (a) we control the producer (scrape_claude_usage.py),
-// (b) the schema is flat with no naming collisions, (c) all values we care
-// about are integers, and (d) ESP-IDF v6 removed the bundled `json` component.
-static int64_t json_int(const char *json, const char *key)
+// Good enough because: the producer is our scraper, the schema is flat with
+// no key collisions, and all values we care about are integers.
+static int64_t json_int(const char *json, const char *key, int64_t missing = 0)
 {
     char needle[48];
     int n = snprintf(needle, sizeof(needle), "\"%s\"", key);
-    if (n < 0 || n >= (int)sizeof(needle)) return 0;
+    if (n < 0 || n >= (int)sizeof(needle)) return missing;
 
     const char *p = strstr(json, needle);
-    if (!p) return 0;
+    if (!p) return missing;
     p += n;
 
     while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
-    if (*p != ':') return 0;
+    if (*p != ':') return missing;
     p++;
     while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
 
-    // strtoll handles optional leading '-' and stops at non-digit.
     char *end = nullptr;
     long long v = strtoll(p, &end, 10);
-    if (end == p) return 0;
+    if (end == p) return missing;
     return (int64_t)v;
 }
 
@@ -58,9 +56,6 @@ int ClaudeMeterManager::Ingest(const char *body, size_t bodyLen,
                                const char *bearer,
                                char *outResp, size_t outRespCap)
 {
-    // Auth: if usage.auth_tok is set, the request must present the same token
-    // as a bearer. If the setting is empty, the endpoint is unauthed (LAN-only
-    // deployments).
     auto &settings = serviceProvider_.getSettingsManager();
     char expectedToken[64] = {};
     settings.getString("usage.auth_tok", expectedToken, sizeof(expectedToken));
@@ -83,7 +78,6 @@ int ClaudeMeterManager::Ingest(const char *body, size_t bodyLen,
     memcpy(buf, body, bodyLen);
     buf[bodyLen] = '\0';
 
-    // Sanity check: looks like a JSON object.
     const char *firstNonWs = buf;
     while (*firstNonWs && isspace((unsigned char)*firstNonWs)) firstNonWs++;
     if (*firstNonWs != '{')
@@ -93,14 +87,12 @@ int ClaudeMeterManager::Ingest(const char *body, size_t bodyLen,
     }
 
     Snapshot s;
-    s.inputTokensToday   = json_int(buf, "input_tokens");
-    s.outputTokensToday  = json_int(buf, "output_tokens");
-    s.cacheCreationToday = json_int(buf, "cache_creation_tokens");
-    s.cacheReadToday     = json_int(buf, "cache_read_tokens");
-    s.costCentsToday     = json_int(buf, "cost_cents");
-    s.lastActivityUnix   = json_int(buf, "last_activity_unix");
-    s.valid              = true;
-    s.updatedAt          = DateTime::Now();
+    s.fiveHourUtilPct   = (int)json_int(buf, "five_hour_util",  -1);
+    s.fiveHourResetUnix =       json_int(buf, "five_hour_reset",  0);
+    s.sevenDayUtilPct   = (int)json_int(buf, "seven_day_util",  -1);
+    s.sevenDayResetUnix =       json_int(buf, "seven_day_reset",  0);
+    s.valid             = (s.fiveHourUtilPct >= 0 || s.sevenDayUtilPct >= 0);
+    s.updatedAt         = DateTime::Now();
 
     {
         LOCK(mutex_);
